@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus Arena</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-base: #050505;
+      --surface: #121216;
+      --surface-hover: #1c1c22;
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #ccff00; /* Verde Neon da referência */
+      --accent-dim: rgba(204, 255, 0, 0.15);
+      --text-main: #ffffff;
+      --text-muted: #8a8a93;
+      --font-display: 'Rajdhani', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: none;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* CURSOR */
+    .cursor-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .cursor-outline {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--accent);
+      border-radius: 50%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s, background 0.2s, border-color 0.2s;
+    }
+
+    .cursor-hover .cursor-outline { width: 50px; height: 50px; background: var(--accent-dim); border-color: transparent; }
+    .cursor-hover .cursor-dot { transform: translate(-50%, -50%) scale(0.5); box-shadow: none; }
+
+    /* FUNDO CANVAS (PARTÍCULAS) */
+    #particle-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* NAVEGAÇÃO TOPO */
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4rem;
+      background: linear-gradient(to bottom, rgba(5, 5, 5, 0.9) 0%, transparent 100%);
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .nav-left { display: flex; align-items: center; gap: 3rem; }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo i { color: var(--accent); }
+
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links li {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: var(--transition);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: none;
+    }
+    .nav-links li:hover, .nav-links li.active { color: var(--text-main); }
+    .nav-links li.active { border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+
+    .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+
+    .search-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: var(--transition);
+    }
+    .search-box:focus-within { border-color: var(--accent); }
+    .search-box input {
+      background: transparent;
+      border: none;
+      color: white;
+      outline: none;
+      font-size: 0.9rem;
+      width: 200px;
+      font-family: var(--font-body);
+    }
+    .search-box i { color: var(--text-muted); }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-family: var(--font-display);
+    }
+
+    /* HERO CINEMATOGRÁFICO */
+    .hero {
+      width: 100%;
+      height: 65vh;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 0 4rem 4rem 4rem;
+      background: linear-gradient(to top, var(--bg-base) 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.8) 100%),
+                  url('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop') center/cover;
+    }
+
+    .hero-content { max-width: 600px; z-index: 2; }
+    
+    .hero-tag {
+      background: var(--accent);
+      color: #000;
+      display: inline-block;
+      padding: 4px 12px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: 4.5rem;
+      font-weight: 700;
+      line-height: 0.9;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      text-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    .hero p {
+      color: #ccc;
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    .btn-hero {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+      padding: 12px 30px;
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: var(--transition);
+    }
+    .btn-hero:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent-dim); }
+
+    /* CONTEÚDO PRINCIPAL (WIDE) */
+    .main-container {
+      padding: 0 4rem;
+      margin-bottom: 5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* CARROSSEL HORIZONTAL */
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    
+    .section-title span { font-size: 0.9rem; color: var(--text-muted); font-family: var(--font-body); }
+
+    .carousel-container {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      padding-bottom: 20px;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+    .carousel-container::-webkit-scrollbar { display: none; }
+
+    /* CARDS DE JOGOS */
+    .game-card {
+      flex: 0 0 320px;
+      height: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      scroll-snap-align: start;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 24px;
+      transform-style: preserve-3d;
+    }
+
+    .game-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(204, 255, 0, 0.1);
+    }
+
+    .card-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.8;
+      transition: transform 0.6s ease, opacity 0.6s ease;
+    }
+    .game-card:hover .card-bg { opacity: 1; transform: scale(1.08); }
+    
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, #000 0%, transparent 90%);
+      z-index: 1;
+    }
+
+    .card-content {
+      position: relative;
+      z-index: 2;
+      transform: translateZ(40px);
+    }
+
+    .card-genre {
+      font-family: var(--font-display);
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      text-shadow: 0 5px 15px rgba(0,0,0,0.8);
+    }
+
+    .card-actions { display: flex; gap: 12px; }
+
+    .btn-action {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 12px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      transition: var(--transition);
+      backdrop-filter: blur(5px);
+    }
+    .btn-action:hover { background: white; color: black; }
+    .btn-action.delete:hover { background: #ff2a2a; border-color: #ff2a2a; color: white; }
+
+    /* PAINEL DE DADOS (ESTILO ESPORTS DASHBOARD) */
+    .admin-panel {
+      background: rgba(18, 18, 22, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2.5rem;
+      margin-top: 4rem;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .admin-header h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .admin-form { display: flex; gap: 16px; margin-bottom: 2rem; }
+    
+    .admin-form input {
+      background: #050505;
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      color: white;
+      font-family: var(--font-body);
+      outline: none;
+      flex: 1;
+      border-radius: 4px;
+      transition: var(--transition);
+    }
+    .admin-form input:focus { border-color: var(--accent); }
+
+    .btn-submit {
+      background: var(--accent);
+      color: black;
+      border: none;
+      padding: 0 32px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      border-radius: 4px;
+      transition: var(--transition);
+    }
+    .btn-submit:hover { filter: brightness(1.2); box-shadow: 0 0 20px var(--accent-dim); }
+
+    /* TABELA DE DADOS */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      text-align: left;
+      font-family: var(--font-display);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .data-table td {
+      padding: 18px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      font-size: 1rem;
+    }
+
+    .data-table tr { transition: var(--transition); }
+    .data-table tr:hover { background: rgba(255,255,255,0.02); }
+
+    .table-id { color: var(--accent); font-family: monospace; font-size: 1.1rem; }
+    .table-name { font-weight: 600; }
+    .table-genre { color: var(--text-muted); }
+
+    .empty-msg { text-align: center; padding: 3rem; color: var(--text-muted); font-family: var(--font-display); font-size: 1.2rem; text-transform: uppercase; }
+
+    /* ANIMAÇÕES */
+    .reveal { opacity: 0; transform: translateY(30px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    .reveal.active { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1024px) {
+      .top-nav { padding: 0 2rem; }
+      .nav-links { display: none; }
+      .hero { padding: 0 2rem 3rem 2rem; height: 50vh; }
+      .hero h1 { font-size: 3rem; }
+      .main-container { padding: 0 2rem; }
+      .admin-form { flex-direction: column; }
+      .btn-submit { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cursor-dot"></div>
+  <div class="cursor-outline"></div>
+  
+  <!-- Canvas para as partículas de fundo -->
+  <canvas id="particle-canvas"></canvas>
+
+  <nav class="top-nav">
+    <div class="nav-left">
+      <div class="logo">
+        <i class="fa-solid fa-gamepad"></i> NEXUS
+      </div>
+      <ul class="nav-links">
+        <li class="active">Início</li>
+        <li>Jogos</li>
+        <li>Torneios</li>
+        <li>Ranking</li>
+      </ul>
+    </div>
+    <div class="nav-right">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" placeholder="Buscar jogo..." />
+      </div>
+      <div class="avatar">AD</div>
+    </div>
+  </nav>
+
+  <header class="hero reveal">
+    <div class="hero-content">
+      <div class="hero-tag">Destaque da Semana</div>
+      <h1>Arena<br>Nexus</h1>
+      <p>Descubra, gerencie e domine o catálogo de jogos do seu banco de dados SQLite em uma interface de alta performance.</p>
+      <button class="btn-hero" onclick="document.getElementById('nome').focus()">Adicionar Jogo</button>
+    </div>
+  </header>
+
+  <main class="main-container">
+    
+    <div class="section-title reveal">
+      <div>Biblioteca de Jogos</div>
+      <span id="game-count">Carregando...</span>
+    </div>
+
+    <div class="carousel-container reveal" id="game-grid"></div>
+
+    <section class="admin-panel reveal">
+      <div class="admin-header">
+        <h2><i class="fa-solid fa-server" style="color: var(--accent); margin-right: 10px;"></i> Console de Controle</h2>
+      </div>
+
+      <div class="admin-form">
+        <input id="nome" placeholder="Nome do Jogo" autocomplete="off" />
+        <input id="genero" placeholder="Gênero (ex: RPG, FPS, MOBA)" autocomplete="off" />
+        <button class="btn-submit" onclick="cadastrar()">Inserir no Banco</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th width="10%">ID</th>
+            <th width="60%">Nome do Jogo</th>
+            <th width="30%">Gênero</th>
+          </tr>
+        </thead>
+        <tbody id="admin-list"></tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <script>
+    /* ================= CURSOR CUSTOMIZADO ================= */
+    const cursorDot = document.querySelector('.cursor-dot');
+    const cursorOutline = document.querySelector('.cursor-outline');
+    let mouseX = 0, mouseY = 0, outlineX = 0, outlineY = 0;
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+    });
+
+    function animateCursor() {
+      outlineX += (mouseX - outlineX) * 0.15;
+      outlineY += (mouseY - outlineY) * 0.15;
+      cursorOutline.style.transform = `translate(${outlineX}px, ${outlineY}px) translate(-50%, -50%)`;
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    function applyCursorHover() {
+      document.querySelectorAll('a, button, input, li, .game-card, .btn-action').forEach(target => {
+        target.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+        target.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+      });
+    }
+    applyCursorHover();
+
+    /* ================= PARTÍCULAS (BRILHANTES E SUAVES) ================= */
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let mouse = { x: null, y: null, radius: 250 };
+
+    function initCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      particles = [];
+      
+      // Densidade equilibrada
+      let count = Math.floor((canvas.width * canvas.height) / 12000);
+      count = Math.min(count, 150);
+      
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+      }
+    }
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        // Tamanhos variados para dar profundidade (poeira estelar)
+        this.baseSize = Math.random() * 2.5 + 1; 
+        this.size = this.baseSize;
+        
+        // Movimento muito lento e flutuante
+        this.vx = (Math.random() - 0.5) * 0.15;
+        this.vy = (Math.random() - 0.5) * 0.15;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        
+        // Quando perto do mouse, ficam mais brancas e brilhantes
+        if (this.size > this.baseSize + 1) {
+          ctx.fillStyle = `rgba(255, 255, 255, 0.9)`;
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = `rgba(204, 255, 0, 0.8)`; // Brilho verde neon
+        } else {
+          ctx.fillStyle = `rgba(255, 255, 255, 0.2)`; // Base: cinza claro/transparente
+          ctx.shadowBlur = 0;
+        }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reseta
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Quica suavemente nas bordas
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+        // Interação magnética com o mouse
+        if (mouse.x != null && mouse.y != null) {
+          let dx = mouse.x - this.x;
+          let dy = mouse.y - this.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < mouse.radius) {
+            let force = (mouse.radius - dist) / mouse.radius;
+            let dirX = dx / dist;
+            let dirY = dy / dist;
+            
+            // Puxa levemente em direção ao mouse
+            this.x += dirX * force * 1.5;
+            this.y += dirY * force * 1.5;
+
+            // Cresce ao aproximar
+            this.size = this.baseSize + (force * 2.5);
+          } else {
+            this.size = this.baseSize;
+          }
+        } else {
+          this.size = this.baseSize;
+        }
+      }
+    }
+
+    function connectParticles() {
+      for (let a = 0; a < particles.length; a++) {
+        // Linhas entre as partículas
+        for (let b = a + 1; b < particles.length; b++) {
+          let dx = particles[a].x - particles[b].x;
+          let dy = particles[a].y - particles[b].y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 120) {
+            let opacity = 1 - (dist / 120);
+            // Linhas brancas bem sutis
+            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.1})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particles[a].x, particles[a].y);
+            ctx.lineTo(particles[b].x, particles[b].y);
+            ctx.stroke();
+          }
+        }
+
+        // Linhas do mouse para as partículas (Constelação)
+        if (mouse.x != null && mouse.y != null) {
+          let dx = particles[a].x - mouse.x;
+          let dy = particles[a].y - mouse.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < mouse.radius) {
+            let opacity = 1 - (dist / mouse.radius);
+            // Linhas do mouse são verdes neon para destacar
+            ctx.strokeStyle = `rgba(204, 255, 0, ${opacity * 0.4})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(particles[a].x, particles[a].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      connectParticles();
+      requestAnimationFrame(animateParticles);
+    }
+
+    window.addEventListener('resize', initCanvas);
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+    window.addEventListener('mouseout', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
+
+    initCanvas();
+    animateParticles();
+
+    /* ================= LÓGICA DA API ================= */
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    function observeReveal() {
+      document.querySelectorAll('.reveal:not(.active)').forEach(el => revealObserver.observe(el));
+    }
+
+    function getGradientColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      const hue = Math.abs(hash) % 360;
+      // Fundo gradiente que combina com a temática escura
+      return `linear-gradient(180deg, hsla(${hue}, 60%, 25%, 0.4) 0%, hsla(${hue}, 60%, 5%, 0.9) 100%)`;
+    }
+
+    function apply3DTilt() {
+      document.querySelectorAll('.game-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          
+          const rotateX = ((y - centerY) / centerY) * -12; // Inclinação X
+          const rotateY = ((x - centerX) / centerX) * 12;  // Inclinação Y
+          
+          card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`;
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)`;
+          card.style.transition = 'transform 0.5s ease';
+        });
+        card.addEventListener('mouseenter', () => {
+          card.style.transition = 'transform 0.1s ease';
+        });
+      });
+    }
+
+    async function listar() {
+      const grid = document.getElementById('game-grid');
+      const adminList = document.getElementById('admin-list');
+      const countLabel = document.getElementById('game-count');
+      
+      try {
+        const resposta = await fetch("/jogos");
+        const jogos = await resposta.json();
+        
+        countLabel.innerText = `${jogos.length} ${jogos.length === 1 ? 'jogo registrado' : 'jogos registrados'}`;
+        
+        grid.innerHTML = "";
+        adminList.innerHTML = "";
+
+        if (jogos.length === 0) {
+          grid.innerHTML = `<div class="empty-msg" style="width:100%;">Nenhum jogo no banco de dados.</div>`;
+          adminList.innerHTML = `<tr><td colspan="3" class="empty-msg">O banco de dados está vazio.</td></tr>`;
+          observeReveal();
+          return;
+        }
+
+        jogos.forEach((jogo, index) => {
+          const gradient = getGradientColor(jogo.genero || "unknown");
+          
+          // CARD DO CARROSSEL
+          const card = document.createElement('div');
+          card.className = 'game-card reveal';
+          card.style.transitionDelay = `${Math.min(index * 0.05, 0.5)}s`;
+          
+          card.innerHTML = `
+            <div class="card-bg" style="background: ${gradient}"></div>
+            <div class="card-overlay"></div>
+            <div class="card-content">
+              <div class="card-genre">${jogo.genero || 'Sem gênero'}</div>
+              <div class="card-title">${jogo.nome || 'Sem nome'}</div>
+              <div class="card-actions">
+                <button class="btn-action" onclick="editarPrompt(${jogo.id}, '${jogo.nome}', '${jogo.genero}')">Editar</button>
+                <button class="btn-action delete" onclick="excluir(${jogo.id})"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+
+          // LINHA DA TABELA DO CONSOLE
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="table-id">#${jogo.id}</td>
+            <td class="table-name">${jogo.nome}</td>
+            <td class="table-genre">${jogo.genero}</td>
+          `;
+          adminList.appendChild(tr);
+        });
+
+        observeReveal();
+        applyCursorHover();
+        apply3DTilt();
+
+      } catch (error) {
+        grid.innerHTML = `<div class="empty-msg" style="width:100%; color:#ff2a2a;">Erro de conexão com a API.</div>`;
+        countLabel.innerText = "API Offline";
+      }
+    }
+
+    async function cadastrar() {
+      const nomeInput = document.getElementById("nome");
+      const generoInput = document.getElementById("genero");
+      const nome = nomeInput.value.trim();
+      const genero = generoInput.value.trim();
+
+      if (!nome || !genero) return alert("Preencha todos os campos!");
+
+      await fetch("/jogos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, genero }),
+      });
+
+      nomeInput.value = "";
+      generoInput.value = "";
+      listar();
+    }
+
+    async function editarPrompt(id, nomeAtual, generoAtual) {
+      const nome = prompt("Atualizar Nome:", nomeAtual);
+      if (nome === null) return;
+      const genero = prompt("Atualizar Gênero:", generoAtual);
+      if (genero === null) return;
+      if (!nome.trim() || !genero.trim()) return alert("Campos vazios não são permitidos.");
+
+      await fetch("/jogos/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, genero }),
+      });
+      listar();
+    }
+
+    async function excluir(id) {
+      if (!confirm("Excluir este jogo permanentemente?")) return;
+      await fetch("/jogos/" + id, { method: "DELETE" });
+      listar();
+    }
+
+    listar();
+  </script>
+</body>
+</html>
